@@ -1,0 +1,6 @@
+{
+  "name": "BioPulse Diagnostics",
+  "description": "Clinical Genomic Assessment and Precision Prevention Platform for calculating polygenic risks, biomarker synthesis, multi-pillar prevention matrices, and pharmacodynamics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

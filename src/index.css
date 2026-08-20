@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  body {
+    background-color: #EDEFEE;
+    color: #41403C;
+    font-family: 'Roboto', sans-serif;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #ffffff !important;
+    color: #41403C !important;
+  }
+  .a4-page {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}

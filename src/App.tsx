@@ -1,0 +1,312 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState } from 'react';
+import { ActiveTab, ConditionId, PatientData, AuthUser } from './types';
+import { INITIAL_PATIENT, SAMPLE_PATIENTS } from './data/clinicalData';
+import { LoginPage } from './components/LoginPage';
+import { Header } from './components/Header';
+import { Sidebar } from './components/Sidebar';
+import { BottomNav } from './components/BottomNav';
+import { OverviewView } from './components/OverviewView';
+import { GeneticRiskView } from './components/GeneticRiskView';
+import { ModifiableFactorsView } from './components/ModifiableFactorsView';
+import { PreventionMatrixView } from './components/PreventionMatrixView';
+import { DrugTestingResultsView } from './components/DrugTestingResultsView';
+import { ClinicalDataInput } from './components/ClinicalDataInput';
+import { PatientReportPrintView } from './components/PatientReportPrintView';
+import { OrderTestModal } from './components/OrderTestModal';
+import { ReferralModal } from './components/ReferralModal';
+import { NotificationDrawer, ClinicalNotification } from './components/NotificationDrawer';
+import { InfoModal } from './components/InfoModal';
+import { CheckCircle2 } from 'lucide-react';
+
+export default function App() {
+  // Authentication State (starts on Login page with Doctor & Patient options)
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+
+  // Navigation & View state - every tab opens its own dedicated page
+  const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
+  const [selectedCondition, setSelectedCondition] = useState<ConditionId>('cad');
+
+  // Patient Clinical State
+  const [patient, setPatient] = useState<PatientData>(INITIAL_PATIENT);
+
+  // Modals state
+  const [isOrderTestOpen, setIsOrderTestOpen] = useState(false);
+  const [orderTestName, setOrderTestName] = useState<string>('Lipoprotein(a) [Lp(a)] & Lipid Subfraction Assay');
+  const [isReferralOpen, setIsReferralOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [infoModalType, setInfoModalType] = useState<'help' | 'privacy' | null>(null);
+
+  // Toast feedback banner
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Notifications State
+  const [notifications, setNotifications] = useState<ClinicalNotification[]>([
+    {
+      id: 'n1',
+      title: 'Pharmacogenomic Allele Alert',
+      message: 'SLCO1B1 rs4149056 521T>C detected: high myopathy risk on standard 40mg Atorvastatin.',
+      time: '10m ago',
+      type: 'critical',
+      read: false,
+    },
+    {
+      id: 'n2',
+      title: 'CYP2C19 *2 Clopidogrel Resistance',
+      message: 'Loss-of-function allele identified. Consider Prasugrel or Ticagrelor per CPIC guideline.',
+      time: '45m ago',
+      type: 'critical',
+      read: false,
+    },
+    {
+      id: 'n3',
+      title: 'Genomic Sequencing Pipeline v4.2 Complete',
+      message: 'Variant calling against GRCh38 reference completed with 99.8% Q30 depth.',
+      time: '1h ago',
+      type: 'success',
+      read: false,
+    },
+    {
+      id: 'n4',
+      title: 'Clinical Guideline Synchronized',
+      message: 'Updated ACC/AHA cardiovascular prevention matrix loaded into clinical core.',
+      time: '3h ago',
+      type: 'info',
+      read: true,
+    },
+  ]);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+  };
+
+  const handleLogin = (user: AuthUser, selectedPatient?: PatientData) => {
+    setCurrentUser(user);
+    if (selectedPatient) {
+      setPatient(selectedPatient);
+    }
+    setActiveTab('overview');
+    showToast(`Welcome, ${user.name} (${user.role === 'doctor' ? 'Doctor Portal' : 'Patient Portal'})`);
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setActiveTab('overview');
+  };
+
+  const handleOrderTestTrigger = (testName?: string) => {
+    if (testName) setOrderTestName(testName);
+    setIsOrderTestOpen(true);
+  };
+
+  const handleConfirmOrder = (summary: string) => {
+    showToast(`Order Confirmed: ${summary}`);
+    const newNotif: ClinicalNotification = {
+      id: 'order-' + Date.now(),
+      title: 'Lab Requisition Dispatched',
+      message: `Requisition created for ${summary}. Specimen collection scheduled.`,
+      time: 'Just now',
+      type: 'success',
+      read: false,
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+  };
+
+  const handleConfirmReferral = (summary: string) => {
+    showToast(`Referral Dispatched: ${summary}`);
+    const newNotif: ClinicalNotification = {
+      id: 'ref-' + Date.now(),
+      title: 'Genetic Referral Transmitted',
+      message: `${summary} transmitted to Telehealth Network.`,
+      time: 'Just now',
+      type: 'success',
+      read: false,
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+  };
+
+  const handleUpdatePatient = (updated: PatientData) => {
+    setPatient(updated);
+    showToast('Patient biometrics & biomarkers updated successfully.');
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  // If not logged in, display the Login Page with Doctor and Patient categories
+  if (!currentUser) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
+  return (
+    <div className="min-h-screen bg-[#EDEFEE] text-[#41403C] flex flex-col font-['Roboto',sans-serif] selection:bg-[#F1DDD0] selection:text-[#8A4A1C]">
+      {/* Toast Notification Alert */}
+      {toastMessage && (
+        <div className="fixed top-20 right-4 z-50 bg-[#41403C] text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 text-[13px] font-medium animate-in slide-in-from-top duration-200 border border-[#D08856]/40">
+          <CheckCircle2 className="w-4 h-4 text-[#D08856]" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Header */}
+      {activeTab !== 'reports' && (
+        <Header
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          selectedCondition={selectedCondition}
+          setSelectedCondition={setSelectedCondition}
+          patient={patient}
+          onOpenNotifications={() => setIsNotificationsOpen(true)}
+          unreadNotificationsCount={unreadCount}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+        />
+      )}
+
+      {/* Main Content Layout */}
+      {activeTab === 'reports' ? (
+        <main className="w-full flex-1">
+          <PatientReportPrintView
+            patient={patient}
+            conditionId={selectedCondition}
+            onBack={() => setActiveTab('overview')}
+          />
+        </main>
+      ) : (
+        <div className="flex flex-1 max-w-[1280px] mx-auto w-full">
+          {/* Desktop Left Sidebar (All tabs open into new pages) */}
+          <Sidebar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            patient={patient}
+            onSelectPatient={(selectedP) => {
+              setPatient(selectedP);
+              showToast(`Loaded Patient Case: ${selectedP.name} (${selectedP.id})`);
+            }}
+            onExportReport={() => setActiveTab('reports')}
+            onOrderTest={() => handleOrderTestTrigger('Expanded 16-Gene Pharmacogenomic Testing Panel')}
+            onReferral={() => setIsReferralOpen(true)}
+            onOpenHelp={() => setInfoModalType('help')}
+            onOpenPrivacy={() => setInfoModalType('privacy')}
+            currentUser={currentUser}
+            onLogout={handleLogout}
+          />
+
+          {/* Dynamic Content View Area - Each tab renders its own dedicated page */}
+          <main className="flex-1 md:pl-72 px-4 sm:px-6 md:px-8 py-6 pb-24 md:pb-12 w-full overflow-x-hidden">
+            {/* 1. Overview Summary Page */}
+            {activeTab === 'overview' && (
+              <OverviewView
+                patient={patient}
+                conditionId={selectedCondition}
+                onSelectCondition={setSelectedCondition}
+                onNavigateTab={setActiveTab}
+                onOrderTests={handleOrderTestTrigger}
+                onReferral={() => setIsReferralOpen(true)}
+                onExportReport={() => setActiveTab('reports')}
+                currentUser={currentUser}
+              />
+            )}
+
+            {/* 2. Genetic Risk (PRS) Page */}
+            {activeTab === 'genetic' && (
+              <GeneticRiskView
+                patient={patient}
+                conditionId={selectedCondition}
+                onSelectCondition={setSelectedCondition}
+                onReferral={() => setIsReferralOpen(true)}
+                currentUser={currentUser}
+              />
+            )}
+
+            {/* 3. Modifiable Factors Page */}
+            {activeTab === 'modifiable' && (
+              <ModifiableFactorsView
+                patient={patient}
+                conditionId={selectedCondition}
+                onSelectCondition={setSelectedCondition}
+                onNavigateToDataInput={() => setActiveTab('input')}
+                onOrderTests={handleOrderTestTrigger}
+                currentUser={currentUser}
+              />
+            )}
+
+            {/* 4. Prevention Matrix Page */}
+            {activeTab === 'prevention' && (
+              <PreventionMatrixView
+                patient={patient}
+                conditionId={selectedCondition}
+                onSelectCondition={setSelectedCondition}
+                onExportReport={() => setActiveTab('reports')}
+                currentUser={currentUser}
+              />
+            )}
+
+            {/* 5. Drug Testing Results Page */}
+            {activeTab === 'drug-testing' && (
+              <DrugTestingResultsView
+                patient={patient}
+                currentUser={currentUser}
+                onOrderTest={handleOrderTestTrigger}
+                onNavigateToDataInput={() => setActiveTab('input')}
+              />
+            )}
+
+            {/* 6. Health Data Input Page */}
+            {activeTab === 'input' && (
+              <ClinicalDataInput
+                patient={patient}
+                onUpdatePatient={handleUpdatePatient}
+                onNavigateToOverview={() => setActiveTab('overview')}
+              />
+            )}
+          </main>
+        </div>
+      )}
+
+      {/* Mobile Bottom Navigation */}
+      {activeTab !== 'reports' && (
+        <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      )}
+
+      {/* Modals & Drawers */}
+      <OrderTestModal
+        isOpen={isOrderTestOpen}
+        onClose={() => setIsOrderTestOpen(false)}
+        defaultTestName={orderTestName}
+        patient={patient}
+        onConfirmOrder={handleConfirmOrder}
+      />
+
+      <ReferralModal
+        isOpen={isReferralOpen}
+        onClose={() => setIsReferralOpen(false)}
+        patient={patient}
+        onConfirmReferral={handleConfirmReferral}
+      />
+
+      <NotificationDrawer
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        notifications={notifications}
+        onMarkAllAsRead={() => {
+          setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        }}
+        onDismiss={(id) => {
+          setNotifications(prev => prev.filter(n => n.id !== id));
+        }}
+      />
+
+      <InfoModal
+        type={infoModalType}
+        onClose={() => setInfoModalType(null)}
+      />
+    </div>
+  );
+}
